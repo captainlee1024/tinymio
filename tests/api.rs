@@ -22,6 +22,7 @@ use tinymio::{Events, Interests, Poll, Registrator, TcpStream};
 
 const TEST_TOKEN: usize = 10; // Hard coded for this test only
 
+//  cargo test proposed_api -- --nocapture
 #[test]
 fn proposed_api() {
     // 1. 创建Reactor到Executor通信的channel

@@ -80,6 +80,7 @@ impl Selector {
         events.clear();
         let timeout = timeout_ms.unwrap_or(-1);
         epoll_wait(self.epoll_fd, events, 1024, timeout).map(|n_events| {
+            println!("finished event: {:?}", n_events);
             unsafe { events.set_len(n_events as usize) };
         })
     }
@@ -160,6 +161,7 @@ mod ffi {
 
     /// 由于同一名称多次使用，可能会造成混淆，但我们有一个 `Event` 结构体。
     /// 此结构体将文件描述符和一个名为 `events` 的字段绑定在一起。`events` 字段保存了哪些事件已准备好用于该文件描述符的信息。
+    #[repr(C, packed)]
     pub struct Event {
         events: u32, // 用户注册的事件类型 比如 EPOLLIN | EPOLLONESHOT 表示对Read事件感兴趣并且在第一个事件之后从队列中移除所有兴趣
         epoll_data: usize, // 用户数据，我们可以放置一个用来标识事件的数字 Token
@@ -181,10 +183,22 @@ mod ffi {
     // linux系统调用
     #[link(name = "c")]
     extern "C" {
+        /// http://man7.org/linux/man-pages/man2/epoll_create1.2.html
         pub fn epoll_create(size: i32) -> i32;
+
+        /// http://man7.org/linux/man-pages/man2/close.2.html
         pub fn close(fd: i32) -> i32;
+
+        /// http://man7.org/linux/man-pages/man2/epoll_ctl.2.html
         pub fn epoll_ctl(epfd: i32, op: i32, fd: i32, event: *mut Event) -> i32;
+
+        /// http://man7.org/linux/man-pages/man2/epoll_wait.2.html
+        ///
+        /// - epoll_event is a pointer to an array of Events
+        /// - timeout of -1 means indefinite
         pub fn epoll_wait(epfd: i32, events: *mut Event, maxevents: i32, timeout: i32) -> i32;
+
+        /// http://man7.org/linux/man-pages/man2/timerfd_create.2.html
         pub fn eventfd(initva: u32, flags: i32) -> i32;
     }
 }
