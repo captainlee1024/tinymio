@@ -7,6 +7,15 @@ use std::{io, net, ptr};
 
 pub type Source = std::os::unix::io::RawFd;
 
+// Registrator 这里我们在rust层面封装一个用于向macos注册感兴趣事件的注册器
+// 这里对应kqueue的注册调用，挂起等待结果响应在selector里实现
+// 他们两个应该持有同一个kqueue的fd
+// 流程大致如下：
+//  1. 先使用Registrator注册我们感兴趣的事件
+//  2. 记录注册事件中的每个事件对应的 Token和后续处理的逻辑，如果是socket 读事件的话一般是一个stream的读取网络响应的逻辑
+//  3. selector 准备一个1024大小的event list 开启main loop 持续监听 kqueue fd 对应的事件队列的响应
+//  4. 一旦有响应之后将响应到event list中的kevent 对应的id 发送给记录token和后续处理函数的地方
+//  5. 根据返回的kevent 中的标识找到token对应的后续处理函数，可以继续执行了
 pub struct Registrator {
     kq: Source,
     is_poll_dead: Arc<AtomicBool>,
@@ -26,13 +35,19 @@ impl Registrator {
             ));
         }
 
+        // 我们的socket 的 fd
         let fd = stream.as_raw_fd();
+        // 如果是对socket 的读事件感兴趣就走这里
         if interests.is_readable() {
+            // 使用工具函数创建一个读事件
             let event = ffi::Event::new_read_event(fd, token as u64);
+            // 放入change list中
             let event = [event];
+            // 进行注册
             kevent(self.kq, &event, &mut [], 0, None)?;
         };
 
+        // TODO: 如果是写事件走这里，待实现
         if interests.is_writable() {
             unimplemented!();
         }
@@ -59,6 +74,14 @@ impl Registrator {
     }
 }
 
+// Selector的作用：
+//  1. kqueue的创建工具
+//  2. Registrator 通过Selector创建，并且创建的所有Registrator都使用Selector的 kqueue fd
+//  3. Registrator 对应了注册事件，而Selector 对应了挂起等待事件的响应
+// 会有一个main loop 循环执行select函数，持续监听selector创建的事件队列中事件的发生，然后好通知之前的任务继续执行
+//
+// NOTE: 一般都是在运行时的Reactor中, Reactor就是用来通知Executor，这个token对应的关注事件发生了，进行后续处理
+// 而进行后续处理的函数和对应的event token和后续处理调用都放在Executor中，Executor和Reactor通过channel通信
 #[derive(Debug)]
 pub struct Selector {
     kq: Source,

@@ -24,8 +24,14 @@ const TEST_TOKEN: usize = 10; // Hard coded for this test only
 
 #[test]
 fn proposed_api() {
+    // 1. 创建Reactor到Executor通信的channel
+    // 用于Reactor监听到操作系统事件对列中事件发生后通知Executor继续执行后续逻辑
     let (evt_sender, evt_receiver) = channel();
+    // 2. 创建Reactor: 用于注册事件到操作系统和持续监听就绪事件
     let mut reactor = Reactor::new(evt_sender);
+    // 3. 创建Executor:
+    //  - 用于记录注册的事件的Token和后续处理逻辑
+    //  - 用于接收Reactor通知触发的事件对应的Token, 然后取出对应的后续逻辑进行执行
     let mut executor = Excutor::new(evt_receiver);
 
     let mut stream = TcpStream::connect("127.0.0.1:9527").unwrap();
@@ -43,11 +49,16 @@ fn proposed_api() {
 
     let registrator = reactor.registrator();
     // 注册对stream感兴趣的(read)事件
+    // 4. 注册事件
     registrator
         .register(&mut stream, TEST_TOKEN, Interests::READABLE)
         .expect("registration err.");
 
     // 把读取stream内容后续处理逻辑封装到函数里托管给executor
+    // 5. 记录事件对应的事件源标识: Token, 和后续处理逻辑
+    // 这里就相当于挂起了我们等待response的后续处理逻辑，并没有在占用资源了
+    // 但是真正的操作系统挂起是 epoll_wait, kqueue的监听事件响应的地方让出线程的
+    // 这里是运行时层面的让出，好继续注册其他事件或者其他不需要阻塞持续执行的任务
     executor.suspend(TEST_TOKEN, move || {
         let mut buffer = String::new();
         stream.read_to_string(&mut buffer).unwrap();
