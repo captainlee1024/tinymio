@@ -217,6 +217,9 @@ mod ffi {
         }
     }
 
+    // Kevent结构体 是kqueue的瑞士军刀，它有两个关键作用：
+    //  1. 作为输入，描述你想要的 change，比如，帮我添加一个对socket a的读事件监听
+    //  2. 作为输出，描述一个已经发生的 event, 比如 socket a 现在可读了
     // https://github.com/rust-lang/libc/blob/c8aa8ec72d631bc35099bcf5d634cf0a0b841be0/src/unix/bsd/apple/mod.rs#L497
     // https://github.com/rust-lang/libc/blob/c8aa8ec72d631bc35099bcf5d634cf0a0b841be0/src/unix/bsd/apple/mod.rs#L207
     #[derive(Debug, Clone, Default)]
@@ -241,9 +244,19 @@ mod ffi {
     #[link(name = "c")]
     extern "C" {
         /// Returns: positive: file descriptor, negative: error
+        ///     // Kqueue()系统调用，这个调用创建一个新的内核事件队列实例，并返回一个指向它的文件描述符
+        //     // 这个kqueue fd 就是之后所有操作的句柄
         pub(super) fn kqueue() -> i32;
         /// Returns: nothing, all non zero return values is an error
         /// If the time limit expires, then kevent() returns 0
+        /// Kevent 系统调用，这是与kqueue交互的唯一函数
+        ///     1. 它接受一个输入： change list, 即一个kevent vec
+        ///     2. 它接收一个空输出：event list, 作为输出缓冲区
+        /// 当输入 change list 不为空时，内核会应用这些变更
+        /// 然后它会检查是否有已出发的event, 如果有就填充到event list缓冲区并返回，如果没有当前事件它会阻塞，或者根据传入的超时限制返回超时
+        ///
+        /// Filters, kqueue使用过滤器来定义事件类型，比如 EVFILT_READ 可读， EVFILT_WRITE 可写, EVFILT_TIMER 定时器
+        /// 这是 kqueue与epoll的一个关键区别
         pub(super) fn kevent(
             kq: i32,
             changelist: *const Kevent,
