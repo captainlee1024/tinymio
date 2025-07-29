@@ -225,11 +225,15 @@ mod ffi {
     #[derive(Debug, Clone, Default)]
     #[repr(C)]
     pub struct Kevent {
+        // 比如我们监听socket是否可以读时，ident就是我们要监听的socket 的 fd
         pub ident: u64,
+        // 监听socket 可读时设置为 EVFILT_READ
         pub filter: i16,
+        // 类似于epoll的op, 比如我们添加一个一次性的监听就是 EV_ADD | EV_ONESHOT
         pub flags: u16,
         pub fflags: u32,
         pub data: i64,
+        // 设置我们的Token, 用于我们自己标识事件源
         pub udata: u64,
     }
 
@@ -270,6 +274,7 @@ mod ffi {
     }
 }
 
+// 使用系统调用创建一个kqueue句柄
 pub fn kqueue() -> io::Result<i32> {
     let fd = unsafe { ffi::kqueue() };
     if fd < 0 {
@@ -278,6 +283,10 @@ pub fn kqueue() -> io::Result<i32> {
     Ok(fd)
 }
 
+// 两次调用：
+//  1. 将changelist提交给内核
+//  2. 第二次调用就是创建一个空的event数组，阻塞直到我们提交的changelist 中的event发生，
+//  现在操作系统暂停我们的线程进行上下文切换并处理其他事情或者只保留电源
 pub fn kevent(
     kq: RawFd,
     cl: &[ffi::Kevent],
