@@ -62,9 +62,9 @@ fn proposed_api() {
     executor.suspend(TEST_TOKEN, move || {
         let mut buffer = String::new();
         stream.read_to_string(&mut buffer).unwrap();
+        registrator.close_loop().expect("close loop err.");
         assert!(!buffer.is_empty(), "Got an empty buffer");
         println!("Got {}", buffer);
-        registrator.close_loop().expect("close loop err.");
     });
 
     // executor开始监听之前注册的感兴趣的事件通知，收到通知后从自己托管的
@@ -85,7 +85,7 @@ impl Reactor {
         let handle = thread::spawn(move || {
             let mut events = Events::with_capacity(1024);
             loop {
-                println!("Waiting! {:?}", poll);
+                // println!("Waiting! {:?}", poll);
                 match poll.poll(&mut events, Some(200)) {
                     Ok(..) => (),
                     Err(ref e) if e.kind() == io::ErrorKind::Interrupted => break,
@@ -148,6 +148,7 @@ impl Excutor {
     fn block_on_all(&mut self) {
         // 收到信号，唤醒之前的任务继续执行
         while let Ok(received_token) = self.evt_receiver.recv() {
+            println!("Received token: {}", received_token);
             assert_eq!(TEST_TOKEN, received_token, "Non matching tokens.");
             self.resume(received_token);
         }
