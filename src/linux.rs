@@ -2,7 +2,10 @@ use crate::{Events, Interests, Token};
 use std::io::{self, IoSliceMut, Read, Write};
 use std::net;
 use std::os::unix::io::{AsRawFd, RawFd};
-use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 pub struct Registrator {
     epoll_fd: RawFd,
@@ -22,7 +25,7 @@ impl Registrator {
             return Err(io::Error::new(
                 io::ErrorKind::Interrupted,
                 "Poll instance closed",
-            ))
+            ));
         }
 
         // 获取stream socket的fd
@@ -46,10 +49,12 @@ impl Registrator {
         Ok(())
     }
 
-
     // 将is_poll_dead设置为true之后，这里发送最后一个事件，关闭队列
     pub fn close_loop(&self) -> io::Result<()> {
-        if self.is_poll_dead.compare_and_swap(false, true, Ordering::SeqCst) {
+        if self
+            .is_poll_dead
+            .compare_and_swap(false, true, Ordering::SeqCst)
+        {
             return Err(io::Error::new(
                 io::ErrorKind::Interrupted,
                 "Poll instance closed",
@@ -86,7 +91,7 @@ impl Selector {
     }
 
     pub fn registrator(&self, is_poll_dead: Arc<AtomicBool>) -> Registrator {
-        Registrator{
+        Registrator {
             epoll_fd: self.epoll_fd,
             is_poll_dead,
         }
@@ -108,7 +113,9 @@ impl Drop for Selector {
 
 pub type Event = ffi::Event;
 impl Event {
-    pub fn id(&self) -> Token{ self.data()}
+    pub fn id(&self) -> Token {
+        self.data()
+    }
 }
 
 pub struct TcpStream {
@@ -120,7 +127,7 @@ impl TcpStream {
         let stream = net::TcpStream::connect(addr)?;
         stream.set_nonblocking(true)?;
 
-        Ok(TcpStream{ inner: stream})
+        Ok(TcpStream { inner: stream })
     }
 }
 

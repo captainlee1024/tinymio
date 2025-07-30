@@ -1,7 +1,7 @@
-use tinymio::{Events, Interests, Poll, Registrator, TcpStream};
 use std::io::{self, Read, Write};
 use std::sync::mpsc::channel;
 use std::thread;
+use tinymio::{Events, Interests, Poll, TcpStream};
 
 //  cargo test multiple_registrations -- --nocapture
 #[test]
@@ -9,7 +9,7 @@ fn multiple_registrations() {
     let mut poll = Poll::new().unwrap();
     let registrator = poll.registrator();
     let (event_tx, event_rx) = channel();
-    let mut runtime = Runtime{ events: vec![]};
+    let mut runtime = Runtime { events: vec![] };
 
     let token1 = 10;
     let token2 = 11;
@@ -69,8 +69,12 @@ fn multiple_registrations() {
         .expect("Stream write err.");
 
     // 注册两个event到内核事件队列
-    registrator.register(&mut stream1, token1, Interests::READABLE).unwrap();
-    registrator.register(&mut stream2, token2, Interests::READABLE).unwrap();
+    registrator
+        .register(&mut stream1, token1, Interests::READABLE)
+        .unwrap();
+    registrator
+        .register(&mut stream2, token2, Interests::READABLE)
+        .unwrap();
 
     // 注册两个socket可读后的后续处理逻辑
     runtime.spawn(token1, move || {
@@ -111,7 +115,11 @@ impl Runtime {
 
     fn run(&mut self, event_id: usize) {
         println!("Running event {}", event_id);
-        let (_, f) = self.events.iter_mut().find(|(e, _)| *e == event_id).expect("Couldn't find event");
+        let (_, f) = self
+            .events
+            .iter_mut()
+            .find(|(e, _)| *e == event_id)
+            .expect("Couldn't find event");
         f();
     }
 }

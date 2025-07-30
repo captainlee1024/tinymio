@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{Arc, mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
@@ -14,9 +14,7 @@ fn main() {
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        pool.execute(|| {
-            handle_connection(stream)
-        });
+        pool.execute(|| handle_connection(stream));
 
         // thread::spawn(|| {
         //     handle_connection(stream)
@@ -60,24 +58,24 @@ fn handle_connection(mut stream: TcpStream) {
     stream.write_all(response.as_bytes()).unwrap();
 }
 
-pub struct ThreadPool{
+pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Job>,
 }
 
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
-        assert!( size > 0);
+        assert!(size > 0);
 
         let (sender, receiver) = mpsc::channel();
         let mut workers = Vec::with_capacity(size);
 
         let receiver = Arc::new(Mutex::new(receiver));
         for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver))) ;
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool {workers, sender}
+        ThreadPool { workers, sender }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -105,7 +103,7 @@ impl Worker {
             job();
         });
 
-        Worker{id, thread}
+        Worker { id, thread }
     }
 }
 
