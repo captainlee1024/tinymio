@@ -53,7 +53,9 @@ impl Registrator {
     pub fn close_loop(&self) -> io::Result<()> {
         if self
             .is_poll_dead
-            .compare_and_swap(false, true, Ordering::SeqCst)
+            // .compare_and_swap(false, true, Ordering::SeqCst)
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
         {
             return Err(io::Error::new(
                 io::ErrorKind::Interrupted,
@@ -159,9 +161,9 @@ impl AsRawFd for TcpStream {
 }
 
 mod ffi {
-    use super::*;
 
     pub const EPOLL_CTL_ADD: i32 = 1;
+    #[allow(dead_code)]
     pub const EPOLL_CTL_DEL: i32 = 2;
     pub const EPOLLIN: i32 = 0x1;
     pub const EPOLLONESHOT: i32 = 0x40000000;

@@ -59,6 +59,7 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 pub struct ThreadPool {
+    #[allow(dead_code)]
     workers: Vec<Worker>,
     sender: mpsc::Sender<Job>,
 }
@@ -88,6 +89,7 @@ impl ThreadPool {
     }
 }
 
+#[allow(dead_code)]
 pub struct Worker {
     id: usize,
     thread: thread::JoinHandle<()>,
